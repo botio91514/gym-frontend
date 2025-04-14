@@ -8,8 +8,8 @@ import ThankYou from './components/ThankYou';
 import { Toaster } from 'react-hot-toast';
 import { Link } from 'react-router-dom';
 
-// Define API base URL - make sure this matches your backend port
-export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+// Define API base URL from environment variable
+export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Create a separate NavBar component that uses useLocation
 function NavBar({ isAdminLoggedIn, onLogout }: { isAdminLoggedIn: boolean; onLogout: () => void }) {
