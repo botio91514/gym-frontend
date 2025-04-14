@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Calendar, CreditCard, CheckCircle, Eye, Edit, Trash, Bell } from 'lucide-react';
+import { Users, Calendar, CreditCard, CheckCircle, Eye, Edit, Trash, Bell, Wallet, CreditCard as OnlineIcon } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { API_BASE_URL } from '../App';
 
@@ -235,6 +235,18 @@ const AdminPanel: React.FC = () => {
     }).format(amount);
   };
 
+  // Add a function to get plan display name
+  const getPlanDisplayName = (plan: string): string => {
+    const planNames: Record<string, string> = {
+      '1month': '1 Month',
+      '2month': '2 Months',
+      '3month': '3 Months',
+      '6month': '6 Months',
+      'yearly': '1 Year'
+    };
+    return planNames[plan] || plan;
+  };
+
   const getPhotoUrl = (photoPath: string | undefined) => {
     if (!photoPath) return '/default-avatar.png';
     
@@ -258,373 +270,487 @@ const AdminPanel: React.FC = () => {
     return `${API_BASE_URL}${cleanPath}`;
   };
 
+  // Add new payment calculation functions
+  const calculatePaymentMethodRevenue = () => {
+    const revenue = {
+      cash: 0,
+      online: 0
+    };
+
+    users
+      .filter(user => user.paymentStatus === 'confirmed')
+      .forEach(user => {
+        if (user.paymentMethod === 'cash') {
+          revenue.cash += getPlanAmount(user.plan);
+        } else if (user.paymentMethod === 'online') {
+          revenue.online += getPlanAmount(user.plan);
+        }
+      });
+
+    return revenue;
+  };
+
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-xl p-6">
-        <h2 className="text-2xl font-bold mb-6">Admin Dashboard</h2>
+    <div className="space-y-6 p-4 sm:p-6">
+      <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Admin Dashboard</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-8 gap-4 mb-8">
-          <div className="bg-blue-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Users className="text-blue-500" />
-              <span className="text-lg font-semibold">Total Members</span>
+        {/* Stats Grid */}
+        <div className="overflow-x-auto -mx-4 sm:mx-0 mb-6">
+          <div className="inline-flex sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4 min-w-max sm:min-w-0 px-4 sm:px-0">
+            {/* Total Members Card */}
+            <div className="w-60 sm:w-auto bg-blue-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <Users className="text-blue-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">Total Members</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">{users.length}</p>
             </div>
-            <p className="text-3xl font-bold mt-2">{users.length}</p>
-          </div>
-          
-          <div className="bg-green-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="text-green-500" />
-              <span className="text-lg font-semibold">Active Members</span>
+            
+            {/* Active Members Card */}
+            <div className="w-60 sm:w-auto bg-green-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <CheckCircle className="text-green-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">Active Members</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {users.filter(u => u.paymentStatus === 'confirmed').length}
+              </p>
             </div>
-            <p className="text-3xl font-bold mt-2">
-              {users.filter(u => u.paymentStatus === 'confirmed').length}
-            </p>
-          </div>
-          
-          <div className="bg-yellow-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <CreditCard className="text-yellow-500" />
-              <span className="text-lg font-semibold">Pending Payments</span>
+            
+            {/* Pending Payments Card */}
+            <div className="w-60 sm:w-auto bg-yellow-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <CreditCard className="text-yellow-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">Pending Payments</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {users.filter(u => u.paymentStatus === 'pending').length}
+              </p>
             </div>
-            <p className="text-3xl font-bold mt-2">
-              {users.filter(u => u.paymentStatus === 'pending').length}
-            </p>
-          </div>
 
-          <div className="bg-purple-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Calendar className="text-purple-500" />
-              <span className="text-lg font-semibold">Monthly Members</span>
+            {/* Monthly Members Card */}
+            <div className="w-60 sm:w-auto bg-purple-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <Calendar className="text-purple-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">Monthly Members</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {users.filter(u => u.plan === '1month').length}
+              </p>
             </div>
-            <p className="text-3xl font-bold mt-2">
-              {users.filter(u => u.plan === '1month').length}
-            </p>
-          </div>
 
-          <div className="bg-indigo-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Calendar className="text-indigo-500" />
-              <span className="text-lg font-semibold">6 Months Members</span>
+            {/* 2 Months Members Card */}
+            <div className="w-60 sm:w-auto bg-rose-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <Calendar className="text-rose-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">2 Months Members</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {users.filter(u => u.plan === '2month').length}
+              </p>
             </div>
-            <p className="text-3xl font-bold mt-2">
-              {users.filter(u => u.plan === '6month').length}
-            </p>
-          </div>
 
-          <div className="bg-pink-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Calendar className="text-pink-500" />
-              <span className="text-lg font-semibold">Yearly Members</span>
+            {/* 3 Months Members Card */}
+            <div className="w-60 sm:w-auto bg-cyan-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <Calendar className="text-cyan-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">3 Months Members</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {users.filter(u => u.plan === '3month').length}
+              </p>
             </div>
-            <p className="text-3xl font-bold mt-2">
-              {users.filter(u => u.plan === 'yearly').length}
-            </p>
-          </div>
 
-          <div className="bg-emerald-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <CreditCard className="text-emerald-500" />
-              <span className="text-lg font-semibold">Monthly Revenue</span>
+            {/* 6 Months Members Card */}
+            <div className="w-60 sm:w-auto bg-indigo-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <Calendar className="text-indigo-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">6 Months Members</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {users.filter(u => u.plan === '6month').length}
+              </p>
             </div>
-            <p className="text-3xl font-bold mt-2">
-              {formatCurrency(calculateMonthlyRevenue())}
-            </p>
-          </div>
 
-          <div className="bg-amber-50 p-4 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <CreditCard className="text-amber-500" />
-              <span className="text-lg font-semibold">Yearly Revenue</span>
+            {/* Yearly Members Card */}
+            <div className="w-60 sm:w-auto bg-pink-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <Calendar className="text-pink-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">Yearly Members</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {users.filter(u => u.plan === 'yearly').length}
+              </p>
             </div>
-            <p className="text-3xl font-bold mt-2">
-              {formatCurrency(calculateYearlyRevenue())}
-            </p>
+
+            {/* Cash Payments Card */}
+            <div className="w-60 sm:w-auto bg-green-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <Wallet className="text-green-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">Cash Payments</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {formatCurrency(calculatePaymentMethodRevenue().cash)}
+              </p>
+            </div>
+
+            {/* Online Payments Card */}
+            <div className="w-60 sm:w-auto bg-blue-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <OnlineIcon className="text-blue-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">Online Payments</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {formatCurrency(calculatePaymentMethodRevenue().online)}
+              </p>
+            </div>
+
+            {/* Monthly Revenue Card */}
+            <div className="w-60 sm:w-auto bg-emerald-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <CreditCard className="text-emerald-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">Monthly Revenue</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {formatCurrency(calculateMonthlyRevenue())}
+              </p>
+            </div>
+
+            {/* Yearly Revenue Card */}
+            <div className="w-60 sm:w-auto bg-amber-50 p-4 rounded-lg">
+              <div className="flex items-center space-x-3">
+                <CreditCard className="text-amber-500 h-5 w-5 sm:h-6 sm:w-6" />
+                <span className="text-sm sm:text-lg font-semibold">Yearly Revenue</span>
+              </div>
+              <p className="text-2xl sm:text-3xl font-bold mt-2">
+                {formatCurrency(calculateYearlyRevenue())}
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-4 mb-6">
-          <button
-            className={`px-4 py-2 rounded-md ${
-              activeTab === 'all'
-                ? 'bg-yellow-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('all')}
-          >
-            All Members
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              activeTab === 'pending'
-                ? 'bg-orange-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('pending')}
-          >
-            Pending Payments
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              activeTab === '1month'
-                ? 'bg-yellow-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('1month')}
-          >
-            Monthly Members
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              activeTab === '2month'
-                ? 'bg-yellow-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('2month')}
-          >
-            2 Months Members
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              activeTab === '3month'
-                ? 'bg-yellow-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('3month')}
-          >
-            3 Months Members
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              activeTab === '6month'
-                ? 'bg-yellow-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('6month')}
-          >
-            6 Months Members
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              activeTab === 'yearly'
-                ? 'bg-yellow-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('yearly')}
-          >
-            Yearly Members
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              activeTab === 'expired'
-                ? 'bg-red-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('expired')}
-          >
-            Expired Members
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md ${
-              activeTab === 'online-payment'
-                ? 'bg-blue-500 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-            onClick={() => setActiveTab('online-payment')}
-          >
-            Online Payment Requests
-          </button>
+        {/* Filter Buttons - Make them scroll horizontally on mobile */}
+        <div className="overflow-x-auto -mx-4 sm:mx-0 mb-6">
+          <div className="inline-flex space-x-2 px-4 sm:px-0 pb-2 sm:pb-0">
+            <button
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md ${
+                activeTab === 'all'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setActiveTab('all')}
+            >
+              All Members
+            </button>
+            <button
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md ${
+                activeTab === 'pending'
+                  ? 'bg-orange-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setActiveTab('pending')}
+            >
+              Pending Payments
+            </button>
+            <button
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md ${
+                activeTab === '1month'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setActiveTab('1month')}
+            >
+              Monthly Members
+            </button>
+            <button
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md ${
+                activeTab === '2month'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setActiveTab('2month')}
+            >
+              2 Months Members
+            </button>
+            <button
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md ${
+                activeTab === '3month'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setActiveTab('3month')}
+            >
+              3 Months Members
+            </button>
+            <button
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md ${
+                activeTab === '6month'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setActiveTab('6month')}
+            >
+              6 Months Members
+            </button>
+            <button
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md ${
+                activeTab === 'yearly'
+                  ? 'bg-yellow-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setActiveTab('yearly')}
+            >
+              Yearly Members
+            </button>
+            <button
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md ${
+                activeTab === 'expired'
+                  ? 'bg-red-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setActiveTab('expired')}
+            >
+              Expired Members
+            </button>
+            <button
+              className={`whitespace-nowrap px-3 sm:px-4 py-2 text-sm sm:text-base rounded-md ${
+                activeTab === 'online-payment'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+              onClick={() => setActiveTab('online-payment')}
+            >
+              Online Payment Requests
+            </button>
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Member
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Plan & Amount
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Payment Method
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Membership Validity
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers().map((user) => (
-                <tr key={user._id} className={
-                  user.paymentStatus === 'pending' ? 'bg-yellow-50' : ''
-                }>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 flex-shrink-0">
-                        <img
-                          className="h-10 w-10 rounded-full object-cover"
-                          src={getPhotoUrl(user.photo)}
-                          alt={user.name}
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement;
-                            console.error('Failed to load image:', user.photo);
-                            target.src = '/default-avatar.png';
-                            target.onerror = null; // Prevent infinite loop
-                          }}
-                        />
-                      </div>
-                      <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{user.name}</div>
-                        <div className="text-sm text-gray-500">{user.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">{user.plan}</div>
-                    <div className="text-sm text-gray-500">{getPlanAmountDisplay(user.plan)}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      user.paymentMethod === 'online' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                    }`}>
-                      {user.paymentMethod === 'online' ? 'Online Payment' : 'Cash Payment'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                      user.paymentStatus === 'confirmed' 
-                        ? 'bg-green-100 text-green-800'
-                        : 'bg-yellow-100 text-yellow-800'
-                    }`}>
-                      {user.paymentStatus === 'confirmed' ? 'Confirmed' : 'Pending'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    {(() => {
-                      const today = new Date();
-                      const endDate = new Date(user.endDate);
-                      const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                      
-                      if (daysLeft < 0) {
-                        return (
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
-                            Expired
-                          </span>
-                        );
-                      } else if (daysLeft <= 7) {
-                        return (
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
-                            {daysLeft} days left
-                          </span>
-                        );
-                      } else {
-                        return (
-                          <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                            Active ({daysLeft} days left)
-                          </span>
-                        );
-                      }
-                    })()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3">
-                    {user.paymentStatus === 'pending' && (
-                      <button
-                        onClick={() => approvePayment(user._id)}
-                        className="text-green-600 hover:text-green-900 inline-flex items-center"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Approve Payment
-                      </button>
-                    )}
-                    {isSubscriptionExpired(user.endDate) && (
-                      <button
-                        onClick={() => {
-                          setSelectedUserForNotification(user);
-                          setShowNotificationModal(true);
-                        }}
-                        className="text-purple-600 hover:text-purple-900 inline-flex items-center"
-                      >
-                        <Bell className="w-4 h-4 mr-1" />
-                        Notify Member
-                      </button>
-                    )}
-                    <button
-                      onClick={() => setSelectedUser(user)}
-                      className="text-blue-600 hover:text-blue-900 inline-flex items-center"
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      View
-                    </button>
-                    <button
-                      onClick={() => {
-                        setEditingUser(user);
-                        setIsEditing(true);
-                      }}
-                      className="text-green-600 hover:text-green-900 inline-flex items-center"
-                    >
-                      <Edit className="w-4 h-4 mr-1" />
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!window.confirm('Are you sure you want to delete this member?')) {
-                          return;
-                        }
-
-                        const token = localStorage.getItem('token');
-                        if (!token) {
-                          throw new Error('No authentication token found');
-                        }
-
-                        fetch(`${API_BASE_URL}/api/users/${user._id}`, {
-                          method: 'DELETE',
-                          headers: {
-                            'Authorization': `Bearer ${token}`
-                          }
-                        })
-                        .then(response => {
-                          if (!response.ok) {
-                            throw new Error('Failed to delete member');
-                          }
-                          setUsers(currentUsers => currentUsers.filter(u => u._id !== user._id));
-                          toast.success('Member deleted successfully');
-                        })
-                        .catch(error => {
-                          toast.error(error.message || 'Failed to delete member');
-                        });
-                      }}
-                      className="text-red-600 hover:text-red-900 inline-flex items-center"
-                    >
-                      <Trash className="w-4 h-4 mr-1" />
-                      Delete
-                    </button>
-                  </td>
+        {/* Table Section - Make it responsive */}
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Member
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Plan & Amount
+                  </th>
+                  <th className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Payment Method
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="hidden sm:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Membership
+                  </th>
+                  <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredUsers().map((user) => (
+                  <tr key={user._id} className={user.paymentStatus === 'pending' ? 'bg-yellow-50' : ''}>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
+                          <img
+                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover"
+                            src={getPhotoUrl(user.photo)}
+                            alt={user.name}
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.src = '/default-avatar.png';
+                              target.onerror = null;
+                            }}
+                          />
+                        </div>
+                        <div className="ml-3 sm:ml-4">
+                          <div className="text-sm font-medium text-gray-900">{user.name}</div>
+                          <div className="text-xs sm:text-sm text-gray-500">{user.email}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">{user.plan}</div>
+                      <div className="text-sm text-gray-500">{getPlanAmountDisplay(user.plan)}</div>
+                    </td>
+                    <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        user.paymentMethod === 'online' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                      }`}>
+                        {user.paymentMethod === 'online' ? 'Online Payment' : 'Cash Payment'}
+                      </span>
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        user.paymentStatus === 'confirmed' 
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {user.paymentStatus === 'confirmed' ? 'Confirmed' : 'Pending'}
+                      </span>
+                    </td>
+                    <td className="hidden sm:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
+                      {(() => {
+                        const today = new Date();
+                        const endDate = new Date(user.endDate);
+                        const daysLeft = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                        
+                        if (daysLeft < 0) {
+                          return (
+                            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                              Expired
+                            </span>
+                          );
+                        } else if (daysLeft <= 7) {
+                          return (
+                            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-orange-100 text-orange-800">
+                              {daysLeft} days left
+                            </span>
+                          );
+                        } else {
+                          return (
+                            <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                              Active ({daysLeft} days left)
+                            </span>
+                          );
+                        }
+                      })()}
+                    </td>
+                    <td className="px-3 sm:px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex flex-col sm:flex-row gap-2 sm:space-x-3">
+                        {user.paymentStatus === 'pending' && (
+                          <button
+                            onClick={() => approvePayment(user._id)}
+                            className="text-green-600 hover:text-green-900 inline-flex items-center text-xs sm:text-sm"
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            <span className="hidden sm:inline">Approve</span>
+                          </button>
+                        )}
+                        {isSubscriptionExpired(user.endDate) && (
+                          <button
+                            onClick={() => {
+                              setSelectedUserForNotification(user);
+                              setShowNotificationModal(true);
+                            }}
+                            className="text-purple-600 hover:text-purple-900 inline-flex items-center text-xs sm:text-sm"
+                          >
+                            <Bell className="w-4 h-4 mr-1" />
+                            <span className="hidden sm:inline">Notify</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setSelectedUser(user)}
+                          className="text-blue-600 hover:text-blue-900 inline-flex items-center text-xs sm:text-sm"
+                        >
+                          <Eye className="w-4 h-4 mr-1" />
+                          <span className="hidden sm:inline">View</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setEditingUser(user);
+                            setIsEditing(true);
+                          }}
+                          className="text-green-600 hover:text-green-900 inline-flex items-center text-xs sm:text-sm"
+                        >
+                          <Edit className="w-4 h-4 mr-1" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (!window.confirm('Are you sure you want to delete this member?')) {
+                              return;
+                            }
+
+                            const token = localStorage.getItem('token');
+                            if (!token) {
+                              throw new Error('No authentication token found');
+                            }
+
+                            fetch(`${API_BASE_URL}/api/users/${user._id}`, {
+                              method: 'DELETE',
+                              headers: {
+                                'Authorization': `Bearer ${token}`
+                              }
+                            })
+                            .then(response => {
+                              if (!response.ok) {
+                                throw new Error('Failed to delete member');
+                              }
+                              setUsers(currentUsers => currentUsers.filter(u => u._id !== user._id));
+                              toast.success('Member deleted successfully');
+                            })
+                            .catch(error => {
+                              toast.error(error.message || 'Failed to delete member');
+                            });
+                          }}
+                          className="text-red-600 hover:text-red-900 inline-flex items-center text-xs sm:text-sm"
+                        >
+                          <Trash className="w-4 h-4 mr-1" />
+                          <span className="hidden sm:inline">Delete</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
 
-      {/* Revenue Breakdown Section */}
-      <div className="bg-white rounded-lg shadow-xl p-6">
-        <h2 className="text-2xl font-bold mb-6">Revenue Breakdown</h2>
+      {/* Revenue Section - Make it responsive */}
+      <div className="bg-white rounded-lg shadow-xl p-4 sm:p-6">
+        <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Revenue Breakdown</h2>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Monthly Revenue Chart */}
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold mb-4">Monthly Revenue</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {/* Cash Payments Card */}
+          <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">Cash Payments</h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Total Revenue</span>
-                <span className="font-bold">{formatCurrency(calculateMonthlyRevenue())}</span>
+                <span className="text-sm sm:text-base text-gray-600">Total Cash</span>
+                <span className="text-base sm:text-lg font-bold">{formatCurrency(calculatePaymentMethodRevenue().cash)}</span>
+              </div>
+              <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-green-500 rounded-full"
+                  style={{ width: '100%' }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Online Payments Card */}
+          <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">Online Payments</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm sm:text-base text-gray-600">Total Online</span>
+                <span className="text-base sm:text-lg font-bold">{formatCurrency(calculatePaymentMethodRevenue().online)}</span>
+              </div>
+              <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className="h-full bg-blue-500 rounded-full"
+                  style={{ width: '100%' }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Monthly Revenue Card */}
+          <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">Monthly Revenue</h3>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <span className="text-sm sm:text-base text-gray-600">Total Revenue</span>
+                <span className="text-base sm:text-lg font-bold">{formatCurrency(calculateMonthlyRevenue())}</span>
               </div>
               <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
                 <div 
@@ -635,13 +761,13 @@ const AdminPanel: React.FC = () => {
             </div>
           </div>
 
-          {/* Yearly Revenue Chart */}
-          <div className="bg-white p-6 rounded-lg border border-gray-200">
-            <h3 className="text-lg font-semibold mb-4">Yearly Revenue</h3>
+          {/* Yearly Revenue Card */}
+          <div className="bg-white p-4 sm:p-6 rounded-lg border border-gray-200">
+            <h3 className="text-base sm:text-lg font-semibold mb-4">Yearly Revenue</h3>
             <div className="space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-gray-600">Total Revenue</span>
-                <span className="font-bold">{formatCurrency(calculateYearlyRevenue())}</span>
+                <span className="text-sm sm:text-base text-gray-600">Total Revenue</span>
+                <span className="text-base sm:text-lg font-bold">{formatCurrency(calculateYearlyRevenue())}</span>
               </div>
               <div className="h-4 bg-gray-200 rounded-full overflow-hidden">
                 <div 
@@ -652,35 +778,25 @@ const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Plan-wise Revenue Breakdown */}
-        <div className="mt-8">
-          <h3 className="text-lg font-semibold mb-4">Revenue by Plan</h3>
-          <div className="space-y-4">
-            {Object.entries(calculateRevenueByPlan()).map(([plan, revenue]) => (
-              <div key={plan} className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex justify-between items-center">
-                  <span className="font-medium capitalize">{plan.replace('month', ' Month').replace('yearly', 'Year')}</span>
-                  <span className="font-bold">{formatCurrency(revenue)}</span>
-                </div>
-                <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-blue-500 rounded-full"
-                    style={{ 
-                      width: `${(revenue / calculateYearlyRevenue()) * 100}%` 
-                    }}
-                  ></div>
-                </div>
-              </div>
-            ))}
-          </div>
+      {/* Revenue by Plan Section */}
+      <div className="bg-white p-4 rounded-lg shadow mb-6">
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">Revenue by Plan</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Object.entries(calculateRevenueByPlan()).map(([plan, revenue]) => (
+            <div key={plan} className="bg-gray-50 p-4 rounded-lg">
+              <h3 className="text-gray-600 text-sm mb-1">{getPlanDisplayName(plan)}</h3>
+              <p className="text-xl font-bold text-gray-800">{formatCurrency(revenue)}</p>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* User Details Modal */}
+      {/* Modals - Make them responsive */}
       {selectedUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full mx-4 p-6 relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setSelectedUser(null)}
               className="absolute right-4 top-4 text-gray-500 hover:text-gray-700"
@@ -767,8 +883,8 @@ const AdminPanel: React.FC = () => {
       )}
 
       {isEditing && editingUser && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg max-w-2xl w-full mx-4 p-6 relative">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => {
                 setIsEditing(false);
@@ -921,9 +1037,8 @@ const AdminPanel: React.FC = () => {
         </div>
       )}
 
-      {/* Notification Confirmation Modal */}
       {showNotificationModal && selectedUserForNotification && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg max-w-md w-full mx-4 p-6 relative">
             <button
               onClick={() => {
