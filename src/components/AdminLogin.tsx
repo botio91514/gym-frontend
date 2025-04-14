@@ -24,6 +24,8 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
+      console.log('Attempting login to:', `${API_BASE_URL}/api/auth/login`);
+      
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
@@ -31,30 +33,41 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
           'Accept': 'application/json'
         },
         credentials: 'include',
+        mode: 'cors',
         body: JSON.stringify(credentials),
         signal: controller.signal
       });
 
       clearTimeout(timeoutId);
 
+      console.log('Login response status:', response.status);
       const data = await response.json();
+      console.log('Login response data:', data);
 
       if (response.ok) {
         if (data.token) {
           localStorage.setItem('token', data.token);
+          console.log('Token stored successfully');
         }
         toast.success('Login successful! Welcome back.');
         onLogin();
       } else {
         const errorMessage = data.message || 'Invalid email or password';
+        console.error('Login failed:', errorMessage);
         setError(errorMessage);
         toast.error(errorMessage);
       }
     } catch (err: unknown) {
       console.error('Login error:', err);
-      if (err instanceof Error && err.name === 'AbortError') {
-        setError('Request timed out. Please try again.');
-        toast.error('Request timed out. Please try again.');
+      if (err instanceof Error) {
+        if (err.name === 'AbortError') {
+          setError('Request timed out. Please try again.');
+          toast.error('Request timed out. Please try again.');
+        } else {
+          console.error('Error details:', err.message);
+          setError(`Error: ${err.message}`);
+          toast.error('Login failed. Please try again.');
+        }
       } else {
         setError('Something went wrong. Please try again.');
         toast.error('Login failed. Please try again.');
