@@ -24,7 +24,9 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      console.log('Attempting login to:', `${API_BASE_URL}/api/auth/login`);
+      console.log('API Base URL:', API_BASE_URL);
+      console.log('Full login URL:', `${API_BASE_URL}/api/auth/login`);
+      console.log('Credentials being sent:', { email: credentials.email });
       
       const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
@@ -40,9 +42,10 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
 
       clearTimeout(timeoutId);
 
-      console.log('Login response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('Response status:', response.status);
       const data = await response.json();
-      console.log('Login response data:', data);
+      console.log('Response data:', data);
 
       if (response.ok) {
         if (data.token) {
@@ -64,11 +67,16 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin }) => {
           setError('Request timed out. Please try again.');
           toast.error('Request timed out. Please try again.');
         } else {
-          console.error('Error details:', err.message);
+          console.error('Detailed error:', {
+            name: err.name,
+            message: err.message,
+            stack: err.stack
+          });
           setError(`Error: ${err.message}`);
           toast.error('Login failed. Please try again.');
         }
       } else {
+        console.error('Unknown error type:', err);
         setError('Something went wrong. Please try again.');
         toast.error('Login failed. Please try again.');
       }
