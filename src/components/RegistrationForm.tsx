@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { addMonths } from 'date-fns';
 import { Loader2, User, Mail, Phone, Calendar, CreditCard, AlertCircle, X, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -86,6 +86,8 @@ const RegistrationForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isCheckingEmail, setIsCheckingEmail] = useState(false);
   const [emailExists, setEmailExists] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const checkEmail = async () => {
@@ -194,68 +196,34 @@ const RegistrationForm: React.FC = () => {
     setIsLoading(true);
     
     try {
-      const data = new FormData();
+      const formDataToSend = new FormData();
+      
+      // Append all form fields
       Object.entries(formData).forEach(([key, value]) => {
-        if (key === 'image' && value) {
-          data.append('image', value);
+        if (key === 'image' && value instanceof File) {
+          formDataToSend.append('image', value);
         } else if (key !== 'image') {
-          data.append(key, value);
+          formDataToSend.append(key, value as string);
         }
       });
+
       const response = await fetch(`${API_BASE_URL}/api/users/register`, {
         method: 'POST',
-        body: data,
+        body: formDataToSend,
+        credentials: 'include'
       });
 
-      const errorData = await response.json();
-      
       if (!response.ok) {
-        console.log('Registration error:', errorData);
-        
-        if (response.status === 400) {
-          if (errorData.message?.includes('email')) {
-            setEmailExists(true);
-            setErrors(prev => ({ ...prev, email: 'This email is already registered' }));
-            toast.error('This email is already registered. Please use a different email.');
-            throw new Error('Email already exists');
-          } else if (errorData.message?.includes('phone')) {
-            setErrors(prev => ({ ...prev, phone: 'This phone number is already registered' }));
-            toast.error('This phone number is already registered. Please use a different phone number.');
-            throw new Error('Phone number already exists');
-          } else {
-            toast.error(errorData.message || 'Registration failed. Please check your information.');
-            throw new Error(errorData.message || 'Registration failed');
-          }
-        } else {
-          toast.error(errorData.message || 'Registration failed. Please try again.');
-          throw new Error(errorData.message || 'Registration failed');
-        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Registration failed');
       }
 
-      toast.success('Registration successful! Please check your email.');
-      navigate('/thank-you');
-
-      // After successful registration
-      setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        dob: '',
-        plan: '1month',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: addMonths(new Date(), 1).toISOString().split('T')[0],
-        paymentMethod: 'online',
-        image: null,
-      });
+      const data = await response.json();
+      toast.success('Registration successful!');
+      navigate('/login');
     } catch (error) {
-      console.error('Error during registration:', error);
-      if (error instanceof Error) {
-        if (!error.message.includes('already exists')) {
-          toast.error('Registration failed. Please check your information and try again.');
-        }
-      } else {
-        toast.error('An unexpected error occurred. Please try again later.');
-      }
+      console.error('Registration error:', error);
+      toast.error(error instanceof Error ? error.message : 'Registration failed. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -267,6 +235,38 @@ const RegistrationForm: React.FC = () => {
       currency: 'INR',
       maximumFractionDigits: 0
     }).format(price);
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
+      if (!validTypes.includes(file.type)) {
+        toast.error('Please upload a valid image file (JPEG, PNG, or GIF)');
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        toast.error('Image size should be less than 5MB');
+        return;
+      }
+
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+      setFormData(prev => ({ ...prev, image: file }));
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImagePreview(null);
+    setFormData(prev => ({ ...prev, image: null }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -445,16 +445,16 @@ const RegistrationForm: React.FC = () => {
               <label className="block text-white mb-2">Profile Image (optional)</label>
               <div className="relative flex items-center space-x-4">
                 <div className="flex-shrink-0">
-                  {formData.image ? (
+                  {imagePreview ? (
                     <div className="relative group">
                       <img
-                        src={formData.image instanceof File ? URL.createObjectURL(formData.image) : formData.image}
+                        src={imagePreview}
                         alt="Preview"
                         className="h-14 w-14 rounded-full object-cover border-2 border-yellow-500 shadow"
                       />
                       <button
                         type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, image: null }))}
+                        onClick={handleRemoveImage}
                         className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-lg"
                         aria-label="Remove image"
                         title="Remove image"
@@ -474,22 +474,12 @@ const RegistrationForm: React.FC = () => {
                   </div>
                   <input
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
-                    onChange={e => {
-                      const file = e.target.files?.[0];
-                      if (file && file.size > 2 * 1024 * 1024) { // 2MB limit
-                        toast.error('Image must be less than 2MB');
-                        return;
-                      }
-                      if (file && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-                        toast.error('Only JPG, PNG, or WEBP images allowed');
-                        return;
-                      }
-                      setFormData(prev => ({ ...prev, image: file || null }));
-                    }}
+                    ref={fileInputRef}
+                    accept="image/jpeg,image/png,image/gif"
+                    onChange={handleImageChange}
                     className="block w-full pl-10 pr-3 py-2 sm:py-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-yellow-500 transition-colors"
                   />
-                  <span className="text-xs text-gray-400 ml-2">Max size: 2MB. JPG/PNG/WEBP recommended.</span>
+                  <span className="text-xs text-gray-400 ml-2">Max size: 5MB. JPEG, PNG, or GIF recommended.</span>
                 </div>
               </div>
             </div>
