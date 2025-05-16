@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { addMonths } from 'date-fns';
-import { Loader2, User, Mail, Phone, Calendar, CreditCard, AlertCircle, X } from 'lucide-react';
+import { Loader2, User, Mail, Phone, Calendar, CreditCard, AlertCircle, X, Image as ImageIcon } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 import { API_BASE_URL } from '../App';
+import { Tooltip } from 'react-tooltip';
 
 interface FormData {
   name: string;
@@ -14,7 +15,8 @@ interface FormData {
   startDate: string;
   endDate: string;
   paymentMethod: 'cash' | 'online';
-  [key: string]: string;
+  image?: File | null;
+  [key: string]: any;
 }
 
 interface FormErrors {
@@ -76,6 +78,7 @@ const RegistrationForm: React.FC = () => {
     startDate: new Date().toISOString().split('T')[0],
     endDate: addMonths(new Date(), 1).toISOString().split('T')[0],
     paymentMethod: 'online',
+    image: null,
   });
 
   const [errors, setErrors] = useState<FormErrors>({});
@@ -191,12 +194,17 @@ const RegistrationForm: React.FC = () => {
     setIsLoading(true);
     
     try {
+      const data = new FormData();
+      Object.entries(formData).forEach(([key, value]) => {
+        if (key === 'image' && value) {
+          data.append('image', value);
+        } else if (key !== 'image') {
+          data.append(key, value);
+        }
+      });
       const response = await fetch(`${API_BASE_URL}/api/users/register`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
+        body: data,
       });
 
       const errorData = await response.json();
@@ -226,6 +234,19 @@ const RegistrationForm: React.FC = () => {
 
       toast.success('Registration successful! Please check your email.');
       navigate('/thank-you');
+
+      // After successful registration
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        dob: '',
+        plan: '1month',
+        startDate: new Date().toISOString().split('T')[0],
+        endDate: addMonths(new Date(), 1).toISOString().split('T')[0],
+        paymentMethod: 'online',
+        image: null,
+      });
     } catch (error) {
       console.error('Error during registration:', error);
       if (error instanceof Error) {
@@ -305,9 +326,9 @@ const RegistrationForm: React.FC = () => {
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6 sm:space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-8 sm:space-y-10">
           {/* Personal Information Section */}
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-4 sm:space-y-6 border-b border-gray-700 pb-6 mb-6">
             <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center">
               <User className="mr-2 text-yellow-500" size={20} />
               Personal Information
@@ -419,10 +440,63 @@ const RegistrationForm: React.FC = () => {
                 )}
               </div>
             </div>
+            {/* Profile Image Upload - enhanced */}
+            <div className="md:col-span-2 mt-4">
+              <label className="block text-white mb-2">Profile Image (optional)</label>
+              <div className="relative flex items-center space-x-4">
+                <div className="flex-shrink-0">
+                  {formData.image ? (
+                    <div className="relative group">
+                      <img
+                        src={formData.image instanceof File ? URL.createObjectURL(formData.image) : formData.image}
+                        alt="Preview"
+                        className="h-14 w-14 rounded-full object-cover border-2 border-yellow-500 shadow"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, image: null }))}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 shadow-lg"
+                        aria-label="Remove image"
+                        title="Remove image"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="h-14 w-14 flex items-center justify-center rounded-full bg-gray-700 border-2 border-gray-600">
+                      <ImageIcon className="text-gray-400" size={32} />
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <ImageIcon className="h-5 w-5 text-gray-400" />
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (file && file.size > 2 * 1024 * 1024) { // 2MB limit
+                        toast.error('Image must be less than 2MB');
+                        return;
+                      }
+                      if (file && !['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+                        toast.error('Only JPG, PNG, or WEBP images allowed');
+                        return;
+                      }
+                      setFormData(prev => ({ ...prev, image: file || null }));
+                    }}
+                    className="block w-full pl-10 pr-3 py-2 sm:py-3 rounded-lg bg-gray-700 text-white border border-gray-600 focus:outline-none focus:border-yellow-500 transition-colors"
+                  />
+                  <span className="text-xs text-gray-400 ml-2">Max size: 2MB. JPG/PNG/WEBP recommended.</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Payment Method Section */}
-          <div className="space-y-4 sm:space-y-6">
+          <div className="space-y-4 sm:space-y-6 border-b border-gray-700 pb-6 mb-6">
             <h3 className="text-lg sm:text-xl font-semibold text-white mb-4 sm:mb-6 flex items-center">
               <CreditCard className="mr-2 text-yellow-500" size={20} />
               Payment Method
