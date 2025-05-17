@@ -248,10 +248,15 @@ const AdminPanel: React.FC = () => {
   };
 
   const getPhotoUrl = (photoPath: string | undefined) => {
-    if (!photoPath) return '/default-avatar.png';
+    console.log('getPhotoUrl received photoPath:', photoPath);
+    if (!photoPath) {
+      console.log('getPhotoUrl returning default avatar (no path).');
+      return '/default-avatar.png';
+    }
 
     // If it's already a full URL (http or https), return it directly
     if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) {
+      console.log('getPhotoUrl returning full URL:', photoPath);
       return photoPath;
     }
     
@@ -558,6 +563,7 @@ const AdminPanel: React.FC = () => {
                               alt={user.name}
                               onError={(e) => {
                                 const target = e.target as HTMLImageElement;
+                                console.error('Failed to load image for user:', user.email, 'Attempted src:', target.src);
                                 target.src = '/default-avatar.png';
                                 target.onerror = null;
                               }}
@@ -905,44 +911,127 @@ const AdminPanel: React.FC = () => {
 
               const form = e.currentTarget;
               const formData = new FormData(form);
-              
-              const updatedData = {
-                name: formData.get('name') as string,
-                email: formData.get('email') as string,
-                phone: formData.get('phone') as string,
-                plan: formData.get('plan') as string,
-                startDate: formData.get('startDate') as string,
-                endDate: formData.get('endDate') as string
-              };
 
-              const token = localStorage.getItem('token');
-              if (!token) {
-                throw new Error('No authentication token found');
+              const updatedData: any = {};
+
+              // Collect text fields
+              const textFields = ['name', 'email', 'phone', 'plan', 'startDate', 'endDate'];
+              textFields.forEach(field => {
+                const value = formData.get(field) as string;
+                if (value !== editingUser[field as keyof User]) { // Only include changed fields
+                  updatedData[field] = value;
+                }
+              });
+
+              // Handle photo file
+              const photoFile = formData.get('photo') as File | null;
+              if (photoFile && photoFile.size > 0) {
+                // We will handle photo upload separately or include in a multi-part form later
+                // For now, we'll just add it to formDataToSend if needed for a separate endpoint
+                // Or process it here if sending as part of the main update
+                // For simplicity, let's plan to send it as a separate request or update the user endpoint
+                // Let's update the existing user endpoint to handle file uploads
               }
 
-              fetch(`${API_BASE_URL}/api/users/${editingUser._id}`, {
-                method: 'PATCH',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updatedData)
-              })
-              .then(response => {
-                if (!response.ok) {
-                  throw new Error('Failed to update user');
+              // If only text data changed, send JSON
+              if (Object.keys(updatedData).length > 0 || (photoFile && photoFile.size === 0)) { // Check if text fields changed or photo field was cleared
+                const token = localStorage.getItem('token');
+                if (!token) {
+                  toast.error('Authentication token missing.');
+                  return;
                 }
-                setUsers(users.map(user => 
-                  user._id === editingUser._id ? { ...user, ...updatedData } : user
-                ));
-                setIsEditing(false);
-                setEditingUser(null);
-                toast.success('User updated successfully!');
-              })
-              .catch(error => {
-                toast.error(error.message || 'Failed to update user');
-              });
+
+                fetch(`${API_BASE_URL}/api/users/${editingUser._id}`, {
+                  method: 'PATCH',
+                  headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json' // Sending JSON for text fields
+                  },
+                  body: JSON.stringify(updatedData)
+                })
+                .then(response => {
+                  if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.message || 'Failed to update user'); });
+                  }
+                  return response.json();
+                })
+                .then(data => {
+                   // Update user in state with returned data
+                  setUsers(users.map(user =>
+                    user._id === editingUser._id ? { ...user, ...data.data.user } : user
+                  ));
+                  toast.success('User updated successfully!');
+                  setIsEditing(false);
+                  setEditingUser(null);
+                })
+                .catch(error => {
+                  console.error('Update error:', error);
+                  toast.error(error.message || 'Failed to update user');
+                });
+
+              } else if (photoFile && photoFile.size > 0) {
+                  // Handle photo file upload separately
+                  const token = localStorage.getItem('token');
+                  if (!token) {
+                    toast.error('Authentication token missing.');
+                    return;
+                  }
+
+                  const photoFormData = new FormData();
+                  photoFormData.append('photo', photoFile);
+
+                  fetch(`${API_BASE_URL}/api/users/${editingUser._id}/photo`, { // New endpoint for photo update
+                    method: 'PATCH',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      // 'Content-Type': 'multipart/form-data' // Browser sets this header automatically with FormData
+                    },
+                    body: photoFormData
+                  })
+                  .then(response => {
+                    if (!response.ok) {
+                       return response.json().then(err => { throw new Error(err.message || 'Failed to update photo'); });
+                    }
+                    return response.json();
+                  })
+                  .then(data => {
+                     // Update user in state with returned data (should include the new photo URL)
+                    setUsers(users.map(user =>
+                      user._id === editingUser._id ? { ...user, photo: data.data.user.photo } : user
+                    ));
+                    toast.success('Profile photo updated successfully!');
+                    setIsEditing(false);
+                    setEditingUser(null);
+                  })
+                  .catch(error => {
+                    console.error('Photo update error:', error);
+                    toast.error(error.message || 'Failed to update profile photo');
+                  });
+              } else {
+                // No changes were made
+                 setIsEditing(false);
+                 setEditingUser(null);
+              }
+
+
             }} className="space-y-4">
+              {/* Photo Upload Field */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Profile Photo</label>
+                <div className="mt-1 flex items-center">
+                   <img
+                    className="inline-block h-12 w-12 rounded-full object-cover mr-4"
+                    src={editingUser.photo ? getPhotoUrl(editingUser.photo) : '/default-avatar.png'}
+                    alt="Profile"
+                   />
+                  <label className="cursor-pointer bg-white py-2 px-3 border border-gray-300 rounded-md shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500">
+                    Upload Photo
+                    <input type="file" name="photo" accept="image/*" className="sr-only" />
+                  </label>
+                </div>
+              </div>
+
+              {/* Existing Text Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Name</label>
