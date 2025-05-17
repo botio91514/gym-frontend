@@ -558,16 +558,25 @@ const AdminPanel: React.FC = () => {
                     <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0">
-                          <img
-                            className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover"
-                            src={getPhotoUrl(user.photo)}
-                            alt={user.name}
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement;
-                              target.src = '/default-avatar.png';
-                              target.onerror = null;
-                            }}
-                          />
+                          {user.photo ? (
+                            <img
+                              className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover"
+                              src={getPhotoUrl(user.photo)}
+                              alt={user.name}
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.src = '/default-avatar.png';
+                                target.onerror = null;
+                              }}
+                            />
+                          ) : (
+                            // Display default avatar if no photo is available
+                            <img
+                              className="h-8 w-8 sm:h-10 sm:w-10 rounded-full object-cover"
+                              src={'/default-avatar.png'}
+                              alt={user.name}
+                            />
+                          )}
                         </div>
                         <div className="ml-3 sm:ml-4">
                           <div className="text-sm font-medium text-gray-900">{user.name}</div>

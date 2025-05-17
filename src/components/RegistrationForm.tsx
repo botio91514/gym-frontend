@@ -226,12 +226,30 @@ const RegistrationForm: React.FC = () => {
             throw new Error('Phone number already registered');
           } else if (data.message.includes('email')) {
             throw new Error('Email already registered');
+          } else if (data.message.includes('image')) {
+            throw new Error(data.message);
           } else {
             throw new Error(data.message || 'Invalid registration data');
           }
         } else if (response.status === 500) {
           if (data.message.includes('image')) {
-            throw new Error('Error uploading profile image. Please try again or skip image upload.');
+            // If image upload fails, try registration without image
+            formDataToSend.delete('image');
+            const retryResponse = await fetch(`${API_BASE_URL}/api/users/register`, {
+              method: 'POST',
+              body: formDataToSend,
+              credentials: 'include'
+            });
+            
+            if (!retryResponse.ok) {
+              const retryData = await retryResponse.json();
+              throw new Error(retryData.message || 'Registration failed');
+            }
+            
+            const retryResult = await retryResponse.json();
+            toast.success('Registration successful! (Image upload skipped)');
+            navigate('/login');
+            return;
           } else {
             throw new Error('Server error. Please try again later.');
           }
