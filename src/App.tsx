@@ -151,7 +151,7 @@ function App() {
                   isAdminLoggedIn ? (
                     <AdminPanel />
                   ) : (
-                    <Navigate to="/admin" replace />
+                    <AdminLogin onLogin={() => setIsAdminLoggedIn(true)} />
                   )
                 } 
               />
