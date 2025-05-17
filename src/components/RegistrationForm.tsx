@@ -201,6 +201,10 @@ const RegistrationForm: React.FC = () => {
       // Append all form fields
       Object.entries(formData).forEach(([key, value]) => {
         if (key === 'image' && value instanceof File) {
+          // Validate image size before sending
+          if (value.size > 5 * 1024 * 1024) { // 5MB
+            throw new Error('Image size should be less than 5MB');
+          }
           formDataToSend.append('image', value);
         } else if (key !== 'image') {
           formDataToSend.append(key, value as string);
@@ -213,12 +217,29 @@ const RegistrationForm: React.FC = () => {
         credentials: 'include'
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Registration failed');
+        // Handle specific error cases
+        if (response.status === 400) {
+          if (data.message.includes('phone')) {
+            throw new Error('Phone number already registered');
+          } else if (data.message.includes('email')) {
+            throw new Error('Email already registered');
+          } else {
+            throw new Error(data.message || 'Invalid registration data');
+          }
+        } else if (response.status === 500) {
+          if (data.message.includes('image')) {
+            throw new Error('Error uploading profile image. Please try again or skip image upload.');
+          } else {
+            throw new Error('Server error. Please try again later.');
+          }
+        } else {
+          throw new Error(data.message || 'Registration failed');
+        }
       }
 
-      const data = await response.json();
       toast.success('Registration successful!');
       navigate('/login');
     } catch (error) {
@@ -244,20 +265,32 @@ const RegistrationForm: React.FC = () => {
       const validTypes = ['image/jpeg', 'image/png', 'image/gif'];
       if (!validTypes.includes(file.type)) {
         toast.error('Please upload a valid image file (JPEG, PNG, or GIF)');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         return;
       }
 
       // Validate file size (max 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB
-      if (file.size > maxSize) {
+      if (file.size > 5 * 1024 * 1024) {
         toast.error('Image size should be less than 5MB');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
         return;
       }
 
-      // Create preview URL
-      const previewUrl = URL.createObjectURL(file);
-      setImagePreview(previewUrl);
-      setFormData(prev => ({ ...prev, image: file }));
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+
+      setFormData(prev => ({
+        ...prev,
+        image: file
+      }));
     }
   };
 
