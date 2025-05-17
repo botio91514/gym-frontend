@@ -73,6 +73,7 @@ function NavBar({ isAdminLoggedIn, onLogout }: { isAdminLoggedIn: boolean; onLog
 
 function App() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
+  const [isLoadingAuth, setIsLoadingAuth] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -96,7 +97,12 @@ function App() {
         console.error('Token verification error:', error);
         localStorage.removeItem('token');
         setIsAdminLoggedIn(false);
+      })
+      .finally(() => {
+        setIsLoadingAuth(false);
       });
+    } else {
+      setIsLoadingAuth(false);
     }
   }, []);
 
@@ -104,6 +110,10 @@ function App() {
     localStorage.removeItem('token');
     setIsAdminLoggedIn(false);
   };
+
+  if (isLoadingAuth) {
+    return <div>Loading...</div>;
+  }
 
   return (
     <>
@@ -141,7 +151,7 @@ function App() {
                   isAdminLoggedIn ? (
                     <AdminPanel />
                   ) : (
-                    <AdminLogin onLogin={() => setIsAdminLoggedIn(true)} />
+                    <Navigate to="/admin" replace />
                   )
                 } 
               />
