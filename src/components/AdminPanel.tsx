@@ -249,25 +249,18 @@ const AdminPanel: React.FC = () => {
 
   const getPhotoUrl = (photoPath: string | undefined) => {
     if (!photoPath) return '/default-avatar.png';
-    
-    // If it's already a full URL, return it
-    if (photoPath.startsWith('http')) return photoPath;
-    
-    // Clean the path by removing any double slashes
-    const cleanPath = photoPath.replace(/\/+/g, '/');
-    
-    // If the path already includes the API_BASE_URL, return it as is
-    if (cleanPath.includes(API_BASE_URL)) {
-      return cleanPath;
+
+    // If it's already a full URL (http or https), return it directly
+    if (photoPath.startsWith('http://') || photoPath.startsWith('https://')) {
+      return photoPath;
     }
     
-    // For paths that start with /uploads, ensure we're using the correct base URL
-    if (cleanPath.startsWith('/uploads/')) {
-      return `${API_BASE_URL}${cleanPath}`;
-    }
-    
-    // For any other paths, prepend the API_BASE_URL
-    return `${API_BASE_URL}${cleanPath}`;
+    // Otherwise, assume it's a local path and prepend the API base URL
+    // Ensure there's exactly one slash between base URL and path
+    const baseUrl = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+    const cleanPath = photoPath.startsWith('/') ? photoPath : `/${photoPath}`;
+
+    return `${baseUrl}${cleanPath}`;
   };
 
   // Add new payment calculation functions
